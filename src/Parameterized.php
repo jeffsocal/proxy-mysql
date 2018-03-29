@@ -1,0 +1,253 @@
+<?php
+
+/*
+ * Written by Jeff Jones (jeff@socalbioinformatics.com)
+ * Copyright (2016) SoCal Bioinformatics Inc.
+ *
+ * See LICENSE.txt for the license.
+ */
+
+/*
+ * GET -> SELECT
+ * = sql_string -> table_data
+ *
+ * PUT -> INSERT
+ * = sql_string -> success/fail
+ *
+ * MOD -> UPDATE
+ * = sql_string -> success/fail
+ *
+ * DEL -> DELETE
+ * = sql_string -> success/fail
+ *
+ */
+namespace ProxyMySQL;
+
+use mysqli;
+
+class Parameterized extends Connect
+{
+
+    protected $data;
+
+    protected $schema;
+
+    protected $table;
+
+    protected $trans_is_modify;
+
+    private $statement;
+
+    private $variables;
+
+    private $statement_types;
+
+    private $variable_types;
+
+    //
+    public function __construct($server)
+    {
+        parent::__construct($server);
+        
+        $this->setVariableTypes();
+        
+        $this->variables = array();
+        
+        $this->variable_types = array();
+    }
+
+    private function setVariableTypes()
+    {
+        /*
+         * Character Description
+         * i corresponding variable has type integer
+         * d corresponding variable has type double
+         * s corresponding variable has type string
+         * b corresponding variable is a blob and will be sent in packets
+         */
+        $this->statement_types = array(
+            'i',
+            'd',
+            's',
+            'b'
+        );
+    }
+
+    private function validateType($type)
+    {
+        if (in_array($type, $this->statement_types))
+            return $type;
+        
+        return 's';
+    }
+
+    public function setStatement($string)
+    {
+        $this->statement = $string;
+    }
+
+    public function addVarible($variable, $value, $type = 's')
+    {
+        array_push($this->variables, $value);
+        array_push($this->variable_types, $this->validateType($type));
+    }
+
+    //
+    //
+    //
+    //
+    //
+    //
+    // GET / SELECT
+    public function paramGet()
+    {
+        $this->setModify(false);
+        if (is_false($this->sqlStringCheck($this->statement, '(SELECT|SHOW)')))
+            return false;
+        
+        return $this->paramTransaction();
+    }
+
+    // PUT / INSERT
+    public function paramPut()
+    {
+        if (is_false($this->sqlStringCheck($this->statement, 'INSERT')))
+            return false;
+        
+        return $this->modifyFromStatement();
+    }
+
+    // MOD / UPDATE
+    public function paramMod()
+    {
+        if (is_false($this->sqlStringCheck($this->statement, 'UPDATE')))
+            return false;
+        
+        return $this->modifyFromStatement();
+    }
+
+    // DEL / DELETE
+    public function paramDel()
+    {
+        if (is_false($this->sqlStringCheck($this->statement, 'DELETE')))
+            return false;
+        
+        return $this->modifyFromStatement();
+    }
+
+    /*
+     * COPIED FROM TRANSACTION.PHP
+     */
+    protected function sqlStringCheck($obj, $control = '(SELECT|SHOW)')
+    {
+        // STRING
+        if (is_string($obj) == true) {
+            $obj = trim($obj);
+            
+            if (! preg_match("/^$control/i", $obj)) {
+                $this->addToLog(__METHOD__, 'ERROR: sql query string is not an ' . $control . ' statement');
+                return false;
+            }
+        } elseif (is_array($obj) == true) {
+            $this->addToLog(__METHOD__, 'ERROR: sql query string is a table, attempted as a string');
+            return false;
+        } else {
+            $this->addToLog(__METHOD__, 'ERROR: sql object is not recognized as a string or table_data');
+            return false;
+        }
+        //
+        return true;
+    }
+
+    //
+    protected function setModify($boolean = true)
+    {
+        $this->trans_is_modify = is_true($boolean);
+    }
+
+    //
+    protected function modifyFromStatement()
+    {
+        $this->setModify(true);
+        if (is_false($this->paramTransaction())) {
+            $this->addToLog(__METHOD__, 'FAIL on MODIFY');
+            return false;
+        }
+        
+        return true;
+    }
+
+    protected function paramTransaction()
+    {
+        $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema);
+        $sql_thread_id = $sql_conn->thread_id;
+        
+        /*
+         * ERROR on CONNECT
+         */
+        if ($sql_conn->connect_errno) {
+            $this->addToLog(__METHOD__, 'CONNECTIONERROR => [' . $sql_conn->connect_errno . '] ' . $sql_conn->connect_error);
+        }
+        
+        $sql_string = $this->statement;
+        
+        $sql_string = preg_replace("/(\n|\r)+/", " ", $sql_string);
+        $sql_string_log = trim($sql_string);
+        if (strlen($sql_string_log) > 1000) {
+            $sql_string_log = substr($sql_string_log, 0, 1000) . "...";
+        }
+        
+        /* create a prepared statement */
+        $params = array();
+        if ($stmt = $sql_conn->prepare($sql_string)) {
+            
+            /* create a parameters array to bind */
+            $params[] = array_tostring($this->variable_types, '', '');
+            foreach ($this->variables as $n => $var) {
+                $params[] = &$this->variables[$n];
+            }
+            
+            /* bind parameters */
+            call_user_func_array(array(
+                $stmt,
+                'bind_param'
+            ), $params);
+            
+            /* execute query */
+            $stmt->execute();
+            
+            $sql_error = '';
+            
+            /* fetch data */
+            $this->data = array();
+            if (is_false($this->trans_is_modify)) {
+                /* fetch value */
+                if ($result = $stmt->get_result()) {
+                    while ($row = $result->fetch_assoc()) {
+                        $this->data[] = $row;
+                    }
+                }
+                
+                /* if the fetch fails */
+                if (sizeof($this->data) == 0) {
+                    $sql_error .= 'FAIL: ' . sizeof($this->data) . ' rows returned\n';
+                }
+            }
+            
+            $sql_error .= $sql_conn->error;
+            $sql_conn->close();
+            
+            if ($sql_error != '') {
+                $this->addToLog(__METHOD__, $sql_error);
+                $this->addToLog(__METHOD__, $sql_string);
+            } else {
+                if (sizeof($this->data) == 0)
+                    return true;
+                
+                return array_rowtocol($this->data);
+            }
+        }
+    }
+}
+
+?>

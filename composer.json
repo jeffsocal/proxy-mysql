@@ -1,0 +1,22 @@
+{
+  "name": "jeffsocal/proxy-mysql",
+  "type": "library",
+  "description": "PHP implementation for mysqli, native queries and parameterized",
+  "keywords": ["Boostrap"],
+  "homepage": "https://github.com/jeffsocal/proxy-mysql/",
+  "require": {
+    "php": ">=7.0.0"
+  },
+  "autoload": {
+    "psr-4": { "ProxyMySQL\\": "src/" }
+  },
+  "authors": [
+    {
+      "name": "Jeff Jones",
+      "email": "jeff@socalbioinformatics.com",
+      "homepage": "https://github.com/jeffsocal",
+      "role": "Developer"
+    }
+  ],
+  "license": "MIT"
+}
