@@ -45,9 +45,9 @@ class Parameterized extends Connect
     private $variable_types;
 
     //
-    public function __construct($server)
+    public function __construct($server, $port = 3306)
     {
-        parent::__construct($server);
+        parent::__construct($server, $port);
         
         $this->setVariableTypes();
         
@@ -179,7 +179,7 @@ class Parameterized extends Connect
 
     protected function paramTransaction()
     {
-        $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema);
+        $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema, $this->port);
         $sql_thread_id = $sql_conn->thread_id;
         
         /*
@@ -202,16 +202,17 @@ class Parameterized extends Connect
         if ($stmt = $sql_conn->prepare($sql_string)) {
             
             /* create a parameters array to bind */
-            $params[] = array_tostring($this->variable_types, '', '');
+            // $params[] = array_tostring($this->variable_types, '', '');
             foreach ($this->variables as $n => $var) {
-                $params[] = &$this->variables[$n];
+                // $params[] = &$this->variables[$n];
+                $stmt->bind_param($this->variable_types[$n], $var);
             }
             
             /* bind parameters */
-            call_user_func_array(array(
-                $stmt,
-                'bind_param'
-            ), $params);
+            // call_user_func_array(array(
+            // $stmt,
+            // 'bind_param'
+            // ), $params);
             
             /* execute query */
             $stmt->execute();
@@ -246,6 +247,9 @@ class Parameterized extends Connect
                 
                 return array_rowtocol($this->data);
             }
+        } else {
+            $this->addToLog(__METHOD__, "COULD NOT PREPARE STATEMENT");
+            $this->addToLog(__METHOD__, $sql_string);
         }
     }
 }

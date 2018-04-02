@@ -21,14 +21,12 @@ class Connect extends Credentials
 
     protected $retry_query;
 
-    //
-    public function __construct($server)
+    public function __construct($server, $port = 3306)
     {
-        parent::__construct($server);
+        parent::__construct($server, $port);
         $this->setRetryOnOpen(1);
     }
 
-    //
     public function setRetryOnOpen($n = 1)
     {
         $this->retry_conn_open = $n;
@@ -44,13 +42,11 @@ class Connect extends Credentials
         $this->retry_query = $n;
     }
 
-    //
     public function setSchema($schema)
     {
         $this->schema = $schema;
     }
 
-    //
     public function setTable($table)
     {
         $this->table = $table;

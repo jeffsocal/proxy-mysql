@@ -13,6 +13,8 @@ use ProxyIO\File\Log;
 class Credentials extends Log
 {
 
+    protected $port;
+    
     protected $server;
 
     protected $login;
@@ -20,18 +22,19 @@ class Credentials extends Log
     protected $password;
 
     //
-    public function __construct($server)
+    public function __construct($server, $port = 3306)
     {
         parent::__construct('sql');
-        $this->setSqlCredentials($server);
+        $this->setSqlCredentials($server, $port);
     }
 
     //
-    private function setSqlCredentials($server)
+    private function setSqlCredentials($server, $port = 3306)
     {
-        $sql_ini = parse_ini_file('ini/' . $server . ".ini");
+        $sql_ini = parse_ini_file(get_include_path(). 'ini/' . $server . "." . $port . ".ini");
         
         $this->server = $server;
+        $this->port = $port;
         $this->login = $sql_ini['login'];
         $this->password = $sql_ini['password'];
     }

@@ -39,19 +39,16 @@ class Transaction extends Connect
 
     protected $trans_is_modify;
 
-    //
-    public function __construct($server)
+    public function __construct($server, $port = 3306)
     {
-        parent::__construct($server);
+        parent::__construct($server, $port);
     }
 
-    //
     function setSchema($schema)
     {
         $this->schema = $schema;
     }
 
-    //
     function setTable($table)
     {
         $this->table = $table;
@@ -109,16 +106,13 @@ class Transaction extends Connect
         return $this->sqlTransaction($obj);
     }
 
-    //
     protected function sqlTransaction($sql_string = null)
     {
-        
-        //
         if (is_null($sql_string)) {
             return false;
         }
         
-        $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema);
+        $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema, $this->port);
         $sql_thread_id = $sql_conn->thread_id;
         
         /*
@@ -154,7 +148,6 @@ class Transaction extends Connect
                 return false;
             }
             
-            //
             // $this->addToLog ( __METHOD__, 'SUCCESS on MODIFY' );
             if (strstr($sql_string, 'INSERT')) {
                 $this->setLastInsertID($sql_conn->insert_id);
@@ -194,7 +187,6 @@ class Transaction extends Connect
             $sql_error = $sql_conn->error;
             $sql_conn->close();
             
-            //
             if (sizeof($this->data) == 0) {
                 $this->addToLog(__METHOD__, 'FAIL: ' . sizeof($this->data) . ' rows returned');
                 $this->addToLog(__METHOD__, $sql_error);
@@ -203,18 +195,10 @@ class Transaction extends Connect
             } else {
                 // $this->addToLog ( __METHOD__, 'SUCCESS: ' . sizeof ( $this->data ) . ' rows returned' );
             }
-            //
             return array_rowtocol($this->data);
         }
     }
 
-    //
-    //
-    //
-    //
-    //
-    //
-    //
     protected function sqlStringCheck($obj, $control = '(SELECT|SHOW)')
     {
         // STRING
@@ -232,17 +216,14 @@ class Transaction extends Connect
             $this->addToLog(__METHOD__, 'ERROR: sql object is not recognized as a string or table_data');
             return false;
         }
-        //
         return true;
     }
 
-    //
     protected function setModify($boolean = true)
     {
         $this->trans_is_modify = is_true($boolean);
     }
 
-    //
     protected function modifyFromString($obj)
     {
         $this->setModify(true);
@@ -254,7 +235,6 @@ class Transaction extends Connect
         return true;
     }
 
-    //
     protected function setLastInsertID($id)
     {
         $this->sql_last_insert_id = $id;
@@ -288,7 +268,6 @@ class Transaction extends Connect
         return $return;
     }
 
-    //
     protected function insertFromTableArray($obj, $split = 1000)
     {
         $head = table_header($obj);
