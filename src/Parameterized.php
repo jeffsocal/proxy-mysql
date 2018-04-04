@@ -51,9 +51,7 @@ class Parameterized extends Connect
         
         $this->setVariableTypes();
         
-        $this->variables = array();
-        
-        $this->variable_types = array();
+        $this->delVaribles();
     }
 
     private function setVariableTypes()
@@ -82,7 +80,9 @@ class Parameterized extends Connect
     }
 
     public function setStatement($string)
+    
     {
+        $this->delVaribles();
         $this->statement = $string;
     }
 
@@ -90,6 +90,12 @@ class Parameterized extends Connect
     {
         array_push($this->variables, $value);
         array_push($this->variable_types, $this->validateType($type));
+    }
+
+    public function delVaribles()
+    {
+        $this->variables = array();
+        $this->variable_types = array();
     }
 
     //
@@ -202,17 +208,16 @@ class Parameterized extends Connect
         if ($stmt = $sql_conn->prepare($sql_string)) {
             
             /* create a parameters array to bind */
-            // $params[] = array_tostring($this->variable_types, '', '');
+            $params[] = array_tostring($this->variable_types, '', '');
             foreach ($this->variables as $n => $var) {
-                // $params[] = &$this->variables[$n];
-                $stmt->bind_param($this->variable_types[$n], $var);
+                $params[] = &$this->variables[$n];
             }
             
             /* bind parameters */
-            // call_user_func_array(array(
-            // $stmt,
-            // 'bind_param'
-            // ), $params);
+            call_user_func_array(array(
+                $stmt,
+                'bind_param'
+            ), $params);
             
             /* execute query */
             $stmt->execute();
@@ -231,7 +236,7 @@ class Parameterized extends Connect
                 
                 /* if the fetch fails */
                 if (sizeof($this->data) == 0) {
-                    $sql_error .= 'FAIL: ' . sizeof($this->data) . ' rows returned\n';
+                    $sql_error .= 'FAIL: ' . sizeof($this->data) . ' rows returned';
                 }
             }
             
@@ -241,7 +246,12 @@ class Parameterized extends Connect
             if ($sql_error != '') {
                 $this->addToLog(__METHOD__, $sql_error);
                 $this->addToLog(__METHOD__, $sql_string);
+                if (is_array($this->variables))
+                    $this->addToLog(__METHOD__, array_tostring($this->variables));
+                
+                return false;
             } else {
+                
                 if (sizeof($this->data) == 0)
                     return true;
                 
@@ -250,6 +260,8 @@ class Parameterized extends Connect
         } else {
             $this->addToLog(__METHOD__, "COULD NOT PREPARE STATEMENT");
             $this->addToLog(__METHOD__, $sql_string);
+            
+            return false;
         }
     }
 }

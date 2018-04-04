@@ -24,7 +24,7 @@ class Sphinx
 
     protected $DetectHack;
 
-    public function __construct($server = '120.0.0.1', $port = '9306')
+    public function __construct($server = '127.0.0.1', $port = '9306')
     {
         $this->Transaction = new Transaction($server, $port);
         $this->DetectHack = new DetectHack('sphinx');
@@ -42,6 +42,9 @@ class Sphinx
 
     function search($str, $limit = 10)
     {
+        if ($str == '' or strlen($str) <= 3)
+            return false;
+        
         if (is_true($this->DetectHack->is_sqlinject($str)))
             return false;
         
@@ -55,17 +58,33 @@ class Sphinx
                             LIMIT ' . $limit;
         }
         
-        $this_table = $this->sqlGet($sql_query);
-        if (is_false($table)) {
-            $table = $this_table;
-        } else {
-            $table = table_bind($table, $this_table);
-        }
+        $table = $this->Transaction->sqlGet($sql_query);
         
         if (is_false($table))
             return false;
         
         return ($table);
+    }
+
+    function searchHits($str)
+    {
+        if ($str == '' or strlen($str) <= 3)
+            return 0;
+        
+        if (is_true($this->DetectHack->is_sqlinject($str)))
+            return 0;
+        
+        $index = trim($this->schema . '.' . $this->table, '.');
+        
+        $sql_query = 'SELECT count(*) hits FROM ' . $index . "
+                      WHERE MATCH('" . $str . "')";
+        
+        $table = $this->Transaction->sqlGet($sql_query);
+        
+        if (is_false($table))
+            return 0;
+        
+        return ($table['hits'][0]);
     }
 }
 
