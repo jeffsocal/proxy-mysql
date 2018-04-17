@@ -27,23 +27,23 @@ use mysqli;
 
 class Parameterized extends Connect
 {
-
+    
     protected $data;
-
+    
     protected $schema;
-
+    
     protected $table;
-
+    
     protected $trans_is_modify;
-
+    
     private $statement;
-
+    
     private $variables;
-
+    
     private $statement_types;
-
+    
     private $variable_types;
-
+    
     //
     public function __construct($server, $port = 3306)
     {
@@ -53,7 +53,7 @@ class Parameterized extends Connect
         
         $this->delVaribles();
     }
-
+    
     private function setVariableTypes()
     {
         /*
@@ -70,34 +70,34 @@ class Parameterized extends Connect
             'b'
         );
     }
-
+    
     private function validateType($type)
     {
         if (in_array($type, $this->statement_types))
             return $type;
-        
-        return 's';
+            
+            return 's';
     }
-
+    
     public function setStatement($string)
     
     {
         $this->delVaribles();
         $this->statement = $string;
     }
-
+    
     public function addVarible($variable, $value, $type = 's')
     {
         array_push($this->variables, $value);
         array_push($this->variable_types, $this->validateType($type));
     }
-
+    
     public function delVaribles()
     {
         $this->variables = array();
         $this->variable_types = array();
     }
-
+    
     //
     //
     //
@@ -110,37 +110,37 @@ class Parameterized extends Connect
         $this->setModify(false);
         if (is_false($this->sqlStringCheck($this->statement, '(SELECT|SHOW)')))
             return false;
-        
-        return $this->paramTransaction();
+            
+            return $this->paramTransaction();
     }
-
+    
     // PUT / INSERT
     public function paramPut()
     {
         if (is_false($this->sqlStringCheck($this->statement, 'INSERT')))
             return false;
-        
-        return $this->modifyFromStatement();
+            
+            return $this->modifyFromStatement();
     }
-
+    
     // MOD / UPDATE
     public function paramMod()
     {
         if (is_false($this->sqlStringCheck($this->statement, 'UPDATE')))
             return false;
-        
-        return $this->modifyFromStatement();
+            
+            return $this->modifyFromStatement();
     }
-
+    
     // DEL / DELETE
     public function paramDel()
     {
         if (is_false($this->sqlStringCheck($this->statement, 'DELETE')))
             return false;
-        
-        return $this->modifyFromStatement();
+            
+            return $this->modifyFromStatement();
     }
-
+    
     /*
      * COPIED FROM TRANSACTION.PHP
      */
@@ -164,13 +164,13 @@ class Parameterized extends Connect
         //
         return true;
     }
-
+    
     //
     protected function setModify($boolean = true)
     {
         $this->trans_is_modify = is_true($boolean);
     }
-
+    
     //
     protected function modifyFromStatement()
     {
@@ -182,7 +182,7 @@ class Parameterized extends Connect
         
         return true;
     }
-
+    
     protected function paramTransaction()
     {
         $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema, $this->port);
@@ -248,14 +248,14 @@ class Parameterized extends Connect
                 $this->addToLog(__METHOD__, $sql_string);
                 if (is_array($this->variables))
                     $this->addToLog(__METHOD__, array_tostring($this->variables));
-                
-                return false;
+                    
+                    return false;
             } else {
                 
                 if (sizeof($this->data) == 0)
                     return true;
-                
-                return array_rowtocol($this->data);
+                    
+                    return array_rowtocol($this->data);
             }
         } else {
             $this->addToLog(__METHOD__, "COULD NOT PREPARE STATEMENT");
