@@ -21,11 +21,12 @@
  * = sql_string -> success/fail
  *
  */
-namespace ProxyMySQL;
+namespace ProxyMySQL\Transactions;
 
+use ProxyMySQL\Base\Connect;
 use mysqli;
 
-class Parameterized extends Connect
+class Prepared extends Connect
 {
     
     protected $data;

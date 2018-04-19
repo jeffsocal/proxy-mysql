@@ -6,7 +6,7 @@
  *
  * See LICENSE.txt for the license.
  */
-namespace ProxyMySQL;
+namespace ProxyMySQL\Base;
 
 use ProxyIO\File\Log;
 

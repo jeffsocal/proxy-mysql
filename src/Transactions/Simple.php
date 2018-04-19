@@ -23,12 +23,13 @@
  * = sql_string -> success/fail
  *
  */
-namespace ProxyMySQL;
+namespace ProxyMySQL\Transactions;
 
 use ProxyIO\File\Delim\WriteDelim;
+use ProxyMySQL\Base\Connect;
 use mysqli;
 
-class Transaction extends Connect
+class Simple extends Connect
 {
 
     protected $data;

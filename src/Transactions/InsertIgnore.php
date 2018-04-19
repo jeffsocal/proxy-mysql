@@ -6,9 +6,9 @@
  *
  * See LICENSE.txt for the license.
  */
-namespace ProxyMySQL;
+namespace ProxyMySQL\Transactions;
 
-class InsertIgnore extends Transaction
+class InsertIgnore extends Simple
 {
 
     //

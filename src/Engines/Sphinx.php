@@ -6,10 +6,10 @@
  *
  * See LICENSE.txt for the license.
  */
-namespace ProxyMySQL\Search;
+namespace ProxyMySQL\Engines;
 
-use ProxyMySQL\Transaction;
-use ProxyMySQL\DetectHack;
+use ProxyMySQL\Base\DetectHack;
+use ProxyMySQL\Simple;
 
 class Sphinx
 {
@@ -26,7 +26,7 @@ class Sphinx
 
     public function __construct($server = '127.0.0.1', $port = '9306')
     {
-        $this->Transaction = new Transaction($server, $port);
+        $this->Transaction = new Simple($server, $port);
         $this->DetectHack = new DetectHack('sphinx');
     }
 
