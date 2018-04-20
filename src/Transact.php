@@ -8,15 +8,17 @@
  */
 
 /*
- * SELECT
- * INSERT
- * UPDATE
- * DELETE
+ * Statements all begin with
+ * SELECT | INSERT | UPDATE | DELETE
+ *
+ * AVOID __ 'LIKE'
+ * USE ____ 'REGEX' INSTEAD
  */
 namespace ProxyMySQL;
 
 use ProxyMySQL\Transactions\Prepared;
 use ProxyMySQL\Transactions\Simple;
+use ProxyIO\File\Log;
 
 class Transact
 {
@@ -31,8 +33,12 @@ class Transact
 
     protected $sql_table;
 
+    private $Log;
+
     public function __construct($server, $port = 3306)
     {
+        $this->Log = new Log('sql');
+        
         $this->force_simple = false;
         $this->sql_server = $server;
         $this->sql_port = $port;
@@ -50,8 +56,71 @@ class Transact
 
     function transaction($statement, $parameters = NULL, $force_simple = FALSE)
     {
-        preg_match("/^[a-zA-Z]+/", $statement, $type);
+        
+        /*
+         * MODIFY LIKE TO REGEXP
+         */
+        $statement = preg_replace("/like/i", "REGEXP", $statement);
+        $statement = trim(preg_replace("/[\r\s]+/", " ", $statement));
+        
+        /*
+         * AUTO DETECT STATEMENT TYPE
+         */
+        preg_match("/^[\s\n]*[a-zA-Z]+/", $statement, $type);
         $type = strtolower($type[0]);
+        
+        if (! strstr('select|update|insert|delete', $type)) {
+            $this->Log->addToLog("SQL not a valid statement [" . $type . "]");
+            return false;
+        }
+        
+        if (!is_null($parameters) and ! is_array($parameters)) {
+            $parameters = [
+                'i' => $parameters
+            ];
+        }
+        
+        if (! is_null($parameters)) {
+            $n_par = count($parameters);
+            preg_match_all("/\?/", $statement, $n_str);
+            
+            if (is_false($n_str)) {
+                $this->Log->addToLog("SQL not a prepared statement");
+                return false;
+            }
+            
+            /*
+             * IF #? does not match # params
+             */
+            if ($n_par != $n_str = count($n_str[0])) {
+                
+                /*
+                 * IF only 1 ?, we can fix that by adding more ?
+                 */
+                if ($n_str == 1) {
+                    
+                    /*
+                     * TEST if parameter is a comparitor
+                     */
+                    if (preg_match("/(in|\=)[\s\n\(]*\?/", $statement)) {
+                        
+                        $statement_expand = array_tostring(array_fill(0, $n_par, '?'), ', ', '');
+                        $statement = preg_replace("/\?/", $statement_expand, $statement, 1);
+                    } elseif (preg_match("/(regexp|like)[\s\n]*\?/i", $statement)) {
+                        
+                        $parameters = [
+                            strtolower(array_tostring($parameters, '|', ''))
+                        ];
+                    } else {
+                        $this->Log->addToLog("SQL statement parameters not properly formed");
+                        return false;
+                    }
+                } else {
+                    $this->Log->addToLog("SQL parameters/variables miss-match [" . $n_par . "] != [" . $n_str . "]");
+                    return false;
+                }
+            }
+        }
         
         /*
          * PREPARED STATEMENTS
@@ -101,6 +170,8 @@ class Transact
         
         if ($type == 'delete')
             return $sqls->sqlDel($statement);
+        
+        return "Humm..";
     }
 }
 

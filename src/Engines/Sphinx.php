@@ -9,7 +9,7 @@
 namespace ProxyMySQL\Engines;
 
 use ProxyMySQL\Base\DetectHack;
-use ProxyMySQL\Simple;
+use ProxyMySQL\Transactions\Simple;
 
 class Sphinx
 {
