@@ -114,14 +114,16 @@ class Simple extends Connect
         }
         
         $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema, $this->port);
-        $sql_thread_id = $sql_conn->thread_id;
         
         /*
          * ERROR on CONNECT
          */
         if ($sql_conn->connect_errno) {
             $this->addToLog(__METHOD__, 'CONNECTIONERROR => [' . $sql_conn->connect_errno . '] ' . $sql_conn->connect_error);
+            return FALSE;
         }
+        
+        $sql_thread_id = $sql_conn->thread_id;
         
         $sql_string = preg_replace("/(\n|\r)+/", " ", $sql_string);
         $sql_string_log = trim($sql_string);
