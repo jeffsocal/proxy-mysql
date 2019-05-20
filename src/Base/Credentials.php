@@ -14,7 +14,7 @@ class Credentials extends Log
 {
 
     protected $port;
-    
+
     protected $server;
 
     protected $login;
@@ -31,12 +31,17 @@ class Credentials extends Log
     //
     private function setSqlCredentials($server, $port = 3306)
     {
-        $sql_ini = parse_ini_file(get_include_path(). 'ini/' . $server . "." . $port . ".ini");
-        
         $this->server = $server;
         $this->port = $port;
-        $this->login = $sql_ini['login'];
-        $this->password = $sql_ini['password'];
+
+        $this->login = '';
+        $this->password = '';
+        
+        if (file_exists(get_include_path() . 'ini/' . $server . "." . $port . ".ini")) {
+            $sql_ini = parse_ini_file(get_include_path() . 'ini/' . $server . "." . $port . ".ini");
+            $this->login = $sql_ini['login'];
+            $this->password = $sql_ini['password'];
+        }
     }
 
     //
