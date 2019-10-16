@@ -60,7 +60,7 @@ class Simple extends Connect
     {
         if (is_false($this->sqlStringCheck($obj, '(SELECT|SHOW)')))
             return false;
-        
+
         $this->setModify(false);
         return $this->sqlTransaction($obj);
     }
@@ -69,24 +69,30 @@ class Simple extends Connect
     public function sqlPut($obj, $split = 1000)
     {
         $this->setModify(true);
-        
+
         if (is_array($obj)) {
             return $this->insertFromTableArray($obj, $split);
         } elseif (is_true($this->sqlStringCheck($obj, 'INSERT'))) {
             return $this->modifyFromString($obj);
         }
-        
+
         $this->addToLog(__METHOD__, 'ERROR: object is not recognized as a string or table_data');
         return false;
     }
 
     // MOD / UPDATE
-    public function sqlMod($obj)
+    public function sqlMod($obj, $split = 1000)
     {
-        if (is_false($this->sqlStringCheck($obj, 'UPDATE')))
-            return false;
-        
-        return $this->modifyFromString($obj);
+        $this->setModify(true);
+
+        if (is_array($obj)) {
+            return $this->updateFromTableArray($obj, $split);
+        } elseif (is_true($this->sqlStringCheck($obj, 'UPDATE'))) {
+            return $this->modifyFromString($obj);
+        }
+
+        $this->addToLog(__METHOD__, 'ERROR: object is not recognized as a string or table_data');
+        return false;
     }
 
     // DEL / DELETE
@@ -94,7 +100,7 @@ class Simple extends Connect
     {
         if (is_false($this->sqlStringCheck($obj, 'DELETE')))
             return false;
-        
+
         return $this->modifyFromString($obj);
     }
 
@@ -103,7 +109,7 @@ class Simple extends Connect
     {
         $this->setModify(false);
         $obj = 'DESCRIBE ' . $this->schema . '.' . $this->table;
-        
+
         return $this->sqlTransaction($obj);
     }
 
@@ -112,9 +118,9 @@ class Simple extends Connect
         if (is_null($sql_string)) {
             return false;
         }
-        
+
         $sql_conn = new mysqli($this->server, $this->login, $this->password, $this->schema, $this->port);
-        
+
         /*
          * ERROR on CONNECT
          */
@@ -122,26 +128,26 @@ class Simple extends Connect
             $this->addToLog(__METHOD__, 'CONNECTIONERROR => [' . $sql_conn->connect_errno . '] ' . $sql_conn->connect_error);
             return FALSE;
         }
-        
+
         $sql_thread_id = $sql_conn->thread_id;
-        
+
         $sql_string = preg_replace("/(\n|\r)+/", " ", $sql_string);
         $sql_string_log = trim($sql_string);
         if (strlen($sql_string_log) > 1000) {
             $sql_string_log = substr($sql_string_log, 0, 1000) . "...";
         }
-        
+
         /*
          * TURN OFF AUTO COMMIT
          */
         $sql_conn->autocommit(false);
-        
+
         if (is_true($this->trans_is_modify)) {
-            
+
             /*
              * MODIFY SQL
              */
-            
+
             $this->sql_last_insert_id = NULL;
             if (is_false($sql_conn->query($sql_string))) {
                 $this->addToLog(__METHOD__, $sql_string_log);
@@ -150,7 +156,7 @@ class Simple extends Connect
                 $sql_conn->close();
                 return false;
             }
-            
+
             // $this->addToLog ( __METHOD__, 'SUCCESS on MODIFY' );
             if (strstr($sql_string, 'INSERT')) {
                 $this->setLastInsertID($sql_conn->insert_id);
@@ -159,14 +165,14 @@ class Simple extends Connect
             $sql_conn->close();
             return true;
         } else {
-            
+
             /*
              * SELECT
              */
-            
+
             $this->data = array();
             if ($result = $sql_conn->query($sql_string)) {
-                
+
                 /*
                  * NOT AVAIABLE in Ubuntu 14.01LTS
                  * --------------------------------------
@@ -178,18 +184,18 @@ class Simple extends Connect
                  */
                 //
                 $this->data = $result->fetch_all(MYSQLI_ASSOC);
-                
+
                 // while ( $row = $result->fetch_array ( MYSQLI_ASSOC ) ) {
                 // $this->data [] = $row;
                 // }
-                
+
                 $result->free();
             }
-            
+
             //
             $sql_error = $sql_conn->error;
             $sql_conn->close();
-            
+
             if (sizeof($this->data) == 0) {
                 $this->addToLog(__METHOD__, 'FAIL: ' . sizeof($this->data) . ' rows returned');
                 $this->addToLog(__METHOD__, $sql_error);
@@ -207,7 +213,7 @@ class Simple extends Connect
         // STRING
         if (is_string($obj) == true) {
             $obj = trim($obj);
-            
+
             if (! preg_match("/^$control/i", $obj)) {
                 $this->addToLog(__METHOD__, 'ERROR: sql query string is not an ' . $control . ' statement');
                 return false;
@@ -234,7 +240,7 @@ class Simple extends Connect
             $this->addToLog(__METHOD__, 'FAIL on MODIFY');
             return false;
         }
-        
+
         return true;
     }
 
@@ -254,20 +260,20 @@ class Simple extends Connect
     {
         $file_name = $_ENV['PATH_RES'] . "/tmp/" . "mysqlTableData_" . date('Ymdhs') . ".csv";
         $fio = new WriteDelim();
-        
+
         $fio->writeCsvFile($file_name, $obj);
-        
+
         $sql_string = "LOAD DATA INFILE '" . $file_name . "'\n";
         $sql_string .= " INTO TABLE " . $this->schema . "." . $this->table . "\n";
         $sql_string .= " FIELDS TERMINATED BY ','" . "\n";
         $sql_string .= " ENCLOSED BY '\"'" . "\n";
         $sql_string .= " LINES TERMINATED BY '\\n'" . "\n";
         $sql_string .= " IGNORE 1 LINES;";
-        
+
         $return = $this->modifyFromString($sql_string);
-        
+
         $fio->deleteFile($file_name);
-        
+
         return $return;
     }
 
@@ -275,21 +281,21 @@ class Simple extends Connect
     {
         $head = table_header($obj);
         $table_index_chunks = array_chunk(array_keys($obj[$head[0]]), $split);
-        
+
         foreach ($table_index_chunks as $table_indexs) {
-            
+
             $sql_string = "INSERT INTO " . $this->schema . "." . $this->table . "\n";
             $sql_string .= "(" . preg_replace("/\"{2}/", "NULL", array_toString($head)) . ")\n";
             $sql_string = str_replace('"', '', $sql_string);
             $sql_string .= " VALUES\n";
-            
+
             foreach ($table_indexs as $i) {
                 $sql_string_line = "(";
                 foreach ($head as $n => $name) {
                     $val = "NULL";
                     if ($obj[$name][$i] != '')
                         $val = '"' . $obj[$name][$i] . '"';
-                    
+
                     $sql_string_line .= $val . ",";
                 }
                 $sql_string_line = trim($sql_string_line, ", ");
@@ -297,15 +303,62 @@ class Simple extends Connect
             }
             $sql_string = trim($sql_string, ",\n") . ";";
             $return = $this->modifyFromString($sql_string);
-            
+
             if (is_false($return)) {
                 return false;
             }
-            
+
             // sleep 2 sec to rest the mysql processes
             sleep(1);
         }
-        
+
+        return $return;
+    }
+
+    protected function updateFromTableArray($obj, $split = 1000)
+    {
+        $head = table_header($obj);
+        $table_index_chunks = array_chunk(array_keys($obj[$head[0]]), $split);
+
+        foreach ($table_index_chunks as $table_indexs) {
+
+            $sql_string = "INSERT INTO " . $this->schema . "." . $this->table . "\n";
+            $sql_string .= "(" . preg_replace("/\"{2}/", "NULL", array_toString($head)) . ")\n";
+            $sql_string = str_replace('"', '', $sql_string);
+            $sql_string .= " VALUES\n";
+
+            foreach ($table_indexs as $i) {
+                $sql_string_line = "(";
+                foreach ($head as $n => $name) {
+                    $val = "NULL";
+                    if ($obj[$name][$i] != '')
+                        $val = '"' . $obj[$name][$i] . '"';
+
+                    $sql_string_line .= $val . ",";
+                }
+                $sql_string_line = trim($sql_string_line, ", ");
+                $sql_string .= $sql_string_line . "),\n";
+            }
+            $sql_string = trim($sql_string, ",\n");
+
+            $sql_string .= "\nON DUPLICATE KEY UPDATE\n";
+            foreach ($head as $col_name) {
+                if (preg_match("/pk/", $col_name))
+                    continue;
+                $sql_string .= $col_name . " = VALUES(" . $col_name . "),\n";
+            }
+            $sql_string = trim($sql_string, ",\n") . ";";
+
+            $return = $this->modifyFromString($sql_string);
+
+            if (is_false($return)) {
+                return false;
+            }
+
+            // sleep 2 sec to rest the mysql processes
+            sleep(1);
+        }
+
         return $return;
     }
 }
