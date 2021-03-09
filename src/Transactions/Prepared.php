@@ -238,10 +238,11 @@ class Prepared extends Connect
             }
 
             /* bind parameters */
-            call_user_func_array(array(
-                $stmt,
-                'bind_param'
-            ), $params);
+            if (sizeof($params) != 0)
+                call_user_func_array(array(
+                    $stmt,
+                    'bind_param'
+                ), $params);
 
             /* execute query */
             $stmt->execute();
